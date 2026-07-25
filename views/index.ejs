@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>DollarPlan | AI Financial Planning</title>
+
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+
+<body>
+    <header class="site-header">
+        <a class="logo" href="/">
+            <span class="logo-icon">$</span>
+            DollarPlan
+        </a>
+
+        <nav class="main-navigation">
+            <a href="/">Home</a>
+
+            <% if (currentUser) { %>
+                <a href="/dashboard">Dashboard</a>
+
+                <form action="/logout" method="POST">
+                    <button class="nav-button" type="submit">
+                        Sign Out
+                    </button>
+                </form>
+            <% } else { %>
+                <a href="/signin">Sign In</a>
+                <a class="nav-button" href="/signup">Create Account</a>
+            <% } %>
+        </nav>
+    </header>
+
+    <main>
+        <section class="hero-section">
+            <div class="hero-content">
+                <p class="eyebrow">
+                    Smarter financial planning
+                </p>
+
+                <h1>
+                    Build a better plan for your money.
+                </h1>
+
+                <p class="hero-description">
+                    DollarPlan helps you track expenses, create
+                    budgets, set savings goals, and receive
+                    AI-powered financial suggestions.
+                </p>
+
+                <div class="hero-buttons">
+                    <% if (currentUser) { %>
+                        <a class="primary-button link-button" href="/dashboard">
+                            Open Dashboard
+                        </a>
+                    <% } else { %>
+                        <a class="primary-button link-button" href="/signup">
+                            Get Started
+                        </a>
+
+                        <a class="secondary-button" href="/signin">
+                            Sign In
+                        </a>
+                    <% } %>
+                </div>
+            </div>
+
+            <div class="hero-preview">
+                <div class="preview-heading">
+                    <div>
+                        <p>Current balance</p>
+                        <h2>$4,250.00</h2>
+                    </div>
+
+                    <span class="positive-label">+8.4%</span>
+                </div>
+
+                <div class="preview-grid">
+                    <article>
+                        <p>Income</p>
+                        <strong>$6,000</strong>
+                    </article>
+
+                    <article>
+                        <p>Expenses</p>
+                        <strong>$1,750</strong>
+                    </article>
+                </div>
+
+                <div class="budget-preview">
+                    <div class="budget-label">
+                        <span>Monthly budget</span>
+                        <span>68%</span>
+                    </div>
+
+                    <div class="progress-track">
+                        <div class="progress-fill"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="feature-section">
+            <article class="feature-card">
+                <div class="feature-icon">01</div>
+                <h2>Track spending</h2>
+                <p>
+                    Record income and expenses to understand where
+                    your money is going.
+                </p>
+            </article>
+
+            <article class="feature-card">
+                <div class="feature-icon">02</div>
+                <h2>Create budgets</h2>
+                <p>
+                    Set monthly category limits and monitor your
+                    progress throughout the month.
+                </p>
+            </article>
+
+            <article class="feature-card">
+                <div class="feature-icon">03</div>
+                <h2>Get AI guidance</h2>
+                <p>
+                    Ask financial questions and receive clear,
+                    educational planning suggestions.
+                </p>
+            </article>
+        </section>
+    </main>
+</body>
+</html>

@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Dashboard | DollarPlan</title>
+
+    <link rel="stylesheet" href="/css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="/js/script.js" defer></script>
+</head>
+
+<body>
+    <header class="site-header">
+        <a class="logo" href="/dashboard">
+            <span class="logo-icon">$</span>
+            DollarPlan
+        </a>
+
+        <nav class="main-navigation">
+            <a href="/dashboard">Dashboard</a>
+
+            <form action="/logout" method="POST">
+                <button class="nav-button" type="submit">
+                    Sign Out
+                </button>
+            </form>
+        </nav>
+    </header>
+
+    <main class="dashboard-container">
+        <section class="dashboard-heading">
+            <div>
+                <p class="eyebrow">Financial overview</p>
+
+                <h1>Welcome, <%= user.username %>!</h1>
+
+                <p>
+                    Track your income and expenses with DollarPlan.
+                </p>
+            </div>
+        </section>
+
+        <section class="dashboard-grid">
+            <article class="summary-card">
+                <div class="summary-card-heading">
+                    <p>Total income</p>
+                    <span class="summary-icon">+</span>
+                </div>
+
+                <h2>
+                    <%= totalIncome.toLocaleString("en-US", {
+                        style: "currency",
+                        currency: "USD"
+                    }) %>
+                </h2>
+
+                <small>All recorded income</small>
+            </article>
+
+            <article class="summary-card">
+                <div class="summary-card-heading">
+                    <p>Total expenses</p>
+                    <span class="summary-icon">−</span>
+                </div>
+
+                <h2>
+                    <%= totalExpenses.toLocaleString("en-US", {
+                        style: "currency",
+                        currency: "USD"
+                    }) %>
+                </h2>
+
+                <small>All recorded expenses</small>
+            </article>
+
+            <article class="summary-card">
+                <div class="summary-card-heading">
+                    <p>Current balance</p>
+                    <span class="summary-icon">$</span>
+                </div>
+
+                <h2>
+                    <%= currentBalance.toLocaleString("en-US", {
+                        style: "currency",
+                        currency: "USD"
+                    }) %>
+                </h2>
+
+                <small>Income minus expenses</small>
+            </article>
+        </section>
+
+         <section class="dashboard-panel ai-panel">
+    <div class="panel-heading">
+        <div>
+            <p class="eyebrow">Powered by Gemini</p>
+            <h2>DollarPlan AI Assistant</h2>
+            <p>
+                Ask for help creating a budget, reducing expenses,
+                or planning a savings goal.
+            </p>
+        </div>
+    </div>
+
+    <div class="ai-example-questions">
+        <button
+            type="button"
+            class="ai-example-button"
+            data-question="Help me create a monthly budget based on my finances."
+        >
+            Create a budget
+        </button>
+
+        <button
+            type="button"
+            class="ai-example-button"
+            data-question="How can I reduce my current expenses?"
+        >
+            Reduce expenses
+        </button>
+
+        <button
+            type="button"
+            class="ai-example-button"
+            data-question="Help me make a realistic savings plan."
+        >
+            Plan my savings
+        </button>
+    </div>
+
+    <form id="ai-finance-form" class="ai-finance-form">
+        <div class="form-group">
+            <label for="ai-question">
+                What would you like help planning?
+            </label>
+
+            <textarea
+                id="ai-question"
+                name="question"
+                rows="4"
+                maxlength="1000"
+                placeholder="Example: How much should I save each month for a $2,000 emergency fund?"
+                required
+            ></textarea>
+
+            <small>
+                Do not enter account numbers, passwords, or other
+                sensitive personal information.
+            </small>
+        </div>
+
+        <button
+            id="ask-ai-button"
+            class="primary-button"
+            type="submit"
+        >
+            Ask DollarPlan AI
+        </button>
+    </form>
+
+    <div
+        id="ai-error"
+        class="error-message ai-hidden"
+        role="alert"
+    ></div>
+
+    <div
+        id="ai-response"
+        class="ai-response ai-hidden"
+        aria-live="polite"
+    >
+        <h3>DollarPlan AI response</h3>
+        <div id="ai-response-text"></div>
+    </div>
+
+    <p class="ai-disclaimer">
+        DollarPlan AI provides educational information and is not
+        a substitute for advice from a qualified financial professional.
+    </p>
+</section>
+
+        <section class="dashboard-content-grid">
+            <article class="dashboard-panel">
+                <div class="panel-heading">
+                    <div>
+                        <h2>Add transaction</h2>
+                        <p>Enter income or an expense.</p>
+                    </div>
+                </div>
+
+                <form
+                    action="/transactions"
+                    method="POST"
+                    class="transaction-form"
+                >
+                    <div class="form-group">
+                        <label for="description">Description</label>
+
+                        <input
+                            id="description"
+                            name="description"
+                            type="text"
+                            placeholder="Example: Paycheck or groceries"
+                            maxlength="100"
+                            required
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label for="amount">Amount</label>
+
+                        <input
+                            id="amount"
+                            name="amount"
+                            type="number"
+                            placeholder="0.00"
+                            min="0.01"
+                            step="0.01"
+                            required
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label for="type">Transaction type</label>
+
+                        <select id="type" name="type" required>
+                            <option value="">Select a type</option>
+                            <option value="income">Add</option>
+                            <option value="expense">Minus</option>
+                        </select>
+                    </div>
+
+                    <button class="primary-button" type="submit">
+                        Add Transaction
+                    </button>
+                </form>
+            </article>
+
+            <aside class="dashboard-panel">
+                <div class="panel-heading">
+                    <div>
+                        <h2>Account</h2>
+                        <p>Your profile information</p>
+                    </div>
+                </div>
+
+                <div class="account-details">
+                    <div>
+                        <span>Username</span>
+                        <strong><%= user.username %></strong>
+                    </div>
+
+                    <div>
+                        <span>Email</span>
+                        <strong><%= user.email %></strong>
+                    </div>
+                </div>
+            </aside>
+        </section>
+
+        <section class="dashboard-panel transactions-panel">
+            <div class="panel-heading">
+                <div>
+                    <h2>Recent transactions</h2>
+                    <p>Your latest income and expenses</p>
+                </div>
+            </div>
+
+            <% if (transactions.length === 0) { %>
+                <div class="empty-state">
+                    <div class="empty-icon">$</div>
+
+                    <h3>No transactions yet</h3>
+
+                    <p>
+                        Add your first transaction using the form above.
+                    </p>
+                </div>
+            <% } else { %>
+                <div class="transaction-list">
+                    <% transactions.forEach((transaction) => { %>
+                        <article class="transaction-item">
+                            <div class="transaction-information">
+                                <div
+                                    class="transaction-type-icon
+                                    <%= transaction.type %>-icon"
+                                >
+                                    <%= transaction.type === "income"
+                                        ? "+"
+                                        : "−"
+                                    %>
+                                </div>
+
+                                <div>
+                                    <h3>
+                                        <%= transaction.description %>
+                                    </h3>
+
+                                    <p>
+                                        <%= new Date(
+                                            transaction.created_at + "Z"
+                                        ).toLocaleDateString() %>
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div class="transaction-actions">
+                                <strong
+                                    class="<%= transaction.type %>-amount"
+                                >
+                                    <%= transaction.type === "income"
+                                        ? "+"
+                                        : "−"
+                                    %>
+
+                                    <%= Number(
+                                        transaction.amount
+                                    ).toLocaleString("en-US", {
+                                        style: "currency",
+                                        currency: "USD"
+                                    }) %>
+                                </strong>
+
+                                <form
+                                    action="/transactions/<%= transaction.id %>/delete"
+                                    method="POST"
+                                >
+                                    <button
+                                        class="delete-button"
+                                        type="submit"
+                                    >
+                                        Delete
+                                    </button>
+                                </form>
+                            </div>
+                        </article>
+                    <% }) %>
+                </div>
+            <% } %>
+        </section>
+
+        <p class="financial-disclaimer">
+            DollarPlan provides educational financial planning tools
+            and does not provide professional financial advice.
+        </p>
+    </main>
+</body>
+</html>

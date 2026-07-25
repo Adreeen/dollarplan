@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Create Account | DollarPlan</title>
+
+    <link rel="stylesheet" href="/css/style.css">
+    <script src="/js/script.js" defer></script>
+</head>
+
+<body class="auth-page">
+    <header class="site-header">
+        <a class="logo" href="/">
+            <span class="logo-icon">$</span>
+            DollarPlan
+        </a>
+
+        <nav class="main-navigation">
+            <a href="/">Home</a>
+            <a href="/signin">Sign In</a>
+        </nav>
+    </header>
+
+    <main class="auth-container">
+        <section class="auth-card">
+            <div class="auth-heading">
+                <p class="eyebrow">Start planning today</p>
+
+                <h1>Create your account</h1>
+
+                <p>
+                    Start tracking your finances and building
+                    better money habits.
+                </p>
+            </div>
+
+            <% if (error) { %>
+                <div class="error-message" role="alert">
+                    <%= error %>
+                </div>
+            <% } %>
+
+            <form
+                action="/signup"
+                method="POST"
+                class="auth-form"
+                id="signup-form"
+            >
+                <div class="form-group">
+                    <label for="username">Username</label>
+
+                    <input
+                        id="username"
+                        name="username"
+                        type="text"
+                        value="<%= formData.username %>"
+                        placeholder="Choose a username"
+                        minlength="3"
+                        maxlength="30"
+                        pattern="[A-Za-z0-9_]+"
+                        autocomplete="username"
+                        required
+                    >
+
+                    <small>
+                        Letters, numbers, and underscores only.
+                    </small>
+                </div>
+
+                <div class="form-group">
+                    <label for="email">Email address</label>
+
+                    <input
+                        id="email"
+                        name="email"
+                        type="email"
+                        value="<%= formData.email %>"
+                        placeholder="name@example.com"
+                        autocomplete="email"
+                        required
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password</label>
+
+                    <div class="password-wrapper">
+                        <input
+                            id="password"
+                            name="password"
+                            type="password"
+                            placeholder="At least 8 characters"
+                            minlength="8"
+                            autocomplete="new-password"
+                            required
+                        >
+
+                        <button
+                            class="password-toggle"
+                            type="button"
+                            data-toggle-password="password"
+                        >
+                            Show
+                        </button>
+                    </div>
+
+                    <small>
+                        Your password must be at least 8 characters.
+                    </small>
+                </div>
+
+                <div class="form-group">
+                    <label for="confirmPassword">
+                        Confirm password
+                    </label>
+
+                    <div class="password-wrapper">
+                        <input
+                            id="confirmPassword"
+                            name="confirmPassword"
+                            type="password"
+                            placeholder="Enter your password again"
+                            minlength="8"
+                            autocomplete="new-password"
+                            required
+                        >
+
+                        <button
+                            class="password-toggle"
+                            type="button"
+                            data-toggle-password="confirmPassword"
+                        >
+                            Show
+                        </button>
+                    </div>
+                </div>
+
+                <div
+                    id="password-match-message"
+                    class="client-message"
+                    aria-live="polite"
+                ></div>
+
+                <label class="checkbox-row">
+                    <input type="checkbox" required>
+
+                    <span>
+                        I agree to the Terms of Service and Privacy Policy.
+                    </span>
+                </label>
+
+                <button class="primary-button" type="submit">
+                    Create Account
+                </button>
+            </form>
+
+            <p class="auth-switch">
+                Already have an account?
+                <a href="/signin">Sign in</a>
+            </p>
+        </section>
+    </main>
+</body>
+</html>

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Sign In | DollarPlan</title>
+
+    <link rel="stylesheet" href="/css/style.css">
+    <script src="/js/script.js" defer></script>
+</head>
+
+<body class="auth-page">
+    <header class="site-header">
+        <a class="logo" href="/">
+            <span class="logo-icon">$</span>
+            DollarPlan
+        </a>
+
+        <nav class="main-navigation">
+            <a href="/">Home</a>
+            <a href="/signup">Create Account</a>
+        </nav>
+    </header>
+
+    <main class="auth-container">
+        <section class="auth-card signin-card">
+            <div class="auth-heading">
+                <p class="eyebrow">Welcome back</p>
+
+                <h1>Sign in to DollarPlan</h1>
+
+                <p>
+                    Access your financial dashboard and continue
+                    working toward your goals.
+                </p>
+            </div>
+
+            <% if (error) { %>
+                <div class="error-message" role="alert">
+                    <%= error %>
+                </div>
+            <% } %>
+
+            <form action="/signin" method="POST" class="auth-form">
+                <div class="form-group">
+                    <label for="email">Email address</label>
+
+                    <input
+                        id="email"
+                        name="email"
+                        type="email"
+                        value="<%= email %>"
+                        placeholder="name@example.com"
+                        autocomplete="email"
+                        required
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password</label>
+
+                    <div class="password-wrapper">
+                        <input
+                            id="password"
+                            name="password"
+                            type="password"
+                            placeholder="Enter your password"
+                            autocomplete="current-password"
+                            required
+                        >
+
+                        <button
+                            class="password-toggle"
+                            type="button"
+                            data-toggle-password="password"
+                        >
+                            Show
+                        </button>
+                    </div>
+                </div>
+
+                <button class="primary-button" type="submit">
+                    Sign In
+                </button>
+            </form>
+
+            <p class="auth-switch">
+                Do not have an account?
+                <a href="/signup">Create one</a>
+            </p>
+        </section>
+    </main>
+</body>
+</html>
