@@ -4,16 +4,30 @@ const session = require("express-session");
 const bcrypt = require("bcryptjs");
 require("dotenv").config();
 
-const db = require("./database/database");
+const {
+    pool,
+    initializeDatabase
+} = require("./database/database");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 let geminiClient = null;
 
+// Render uses a reverse proxy.
+if (process.env.NODE_ENV === "production") {
+    app.set("trust proxy", 1);
+}
+
+// ----------------------------------------
+// Gemini
+// ----------------------------------------
+
 async function getGeminiClient() {
     if (!process.env.GEMINI_API_KEY) {
-        throw new Error("GEMINI_API_KEY is missing from the .env file.");
+        throw new Error(
+            "GEMINI_API_KEY is missing from the environment variables."
+        );
     }
 
     if (!geminiClient) {
@@ -26,6 +40,69 @@ async function getGeminiClient() {
 
     return geminiClient;
 }
+
+// ----------------------------------------
+// Database helper functions
+// ----------------------------------------
+
+async function getFinancialTotals(userId) {
+    const result = await pool.query(
+        `
+        SELECT
+            COALESCE(
+                SUM(
+                    CASE
+                        WHEN type = 'income' THEN amount
+                        ELSE 0
+                    END
+                ),
+                0
+            ) AS "totalIncome",
+
+            COALESCE(
+                SUM(
+                    CASE
+                        WHEN type = 'expense' THEN amount
+                        ELSE 0
+                    END
+                ),
+                0
+            ) AS "totalExpenses"
+
+        FROM transactions
+        WHERE user_id = $1
+        `,
+        [userId]
+    );
+
+    const totals = result.rows[0];
+
+    return {
+        totalIncome: Number(totals.totalIncome),
+        totalExpenses: Number(totals.totalExpenses)
+    };
+}
+
+async function getRecentTransactions(userId, limit = 10) {
+    const result = await pool.query(
+        `
+        SELECT
+            id,
+            description,
+            amount,
+            type,
+            created_at
+        FROM transactions
+        WHERE user_id = $1
+        ORDER BY created_at DESC, id DESC
+        LIMIT $2
+        `,
+        [userId, limit]
+    );
+
+    return result.rows;
+}
+
 // ----------------------------------------
 // EJS configuration
 // ----------------------------------------
@@ -37,30 +114,34 @@ app.set("views", path.join(__dirname, "views"));
 // Middleware
 // ----------------------------------------
 
-// Serve CSS, JavaScript, and image files.
 app.use(express.static(path.join(__dirname, "public")));
 
-// Read form information.
-app.use(express.urlencoded({ extended: true }));
+app.use(express.urlencoded({
+    extended: true
+}));
+
 app.use(express.json());
 
-// Configure login sessions.
 app.use(
     session({
         secret:
             process.env.SESSION_SECRET ||
             "temporary-dollarplan-development-secret",
+
         resave: false,
         saveUninitialized: false,
+
         cookie: {
             httpOnly: true,
             maxAge: 1000 * 60 * 60,
-            secure: false
+
+            secure: process.env.NODE_ENV === "production",
+
+            sameSite: "lax"
         }
     })
 );
 
-// Make the signed-in user available on every EJS page.
 app.use((req, res, next) => {
     res.locals.currentUser = req.session.user || null;
     next();
@@ -105,25 +186,35 @@ app.get("/signup", (req, res) => {
 });
 
 app.post("/signup", async (req, res) => {
-    try {
-        let {
-            username,
-            email,
-            password,
-            confirmPassword
-        } = req.body;
+    let username = "";
+    let email = "";
 
-        username = username ? username.trim() : "";
-        email = email ? email.trim().toLowerCase() : "";
-        password = password || "";
-        confirmPassword = confirmPassword || "";
+    try {
+        username =
+            typeof req.body.username === "string"
+                ? req.body.username.trim()
+                : "";
+
+        email =
+            typeof req.body.email === "string"
+                ? req.body.email.trim().toLowerCase()
+                : "";
+
+        const password =
+            typeof req.body.password === "string"
+                ? req.body.password
+                : "";
+
+        const confirmPassword =
+            typeof req.body.confirmPassword === "string"
+                ? req.body.confirmPassword
+                : "";
 
         const formData = {
             username,
             email
         };
 
-        // Make sure every field was completed.
         if (!username || !email || !password || !confirmPassword) {
             return res.status(400).render("signup", {
                 error: "Please complete every field.",
@@ -131,7 +222,6 @@ app.post("/signup", async (req, res) => {
             });
         }
 
-        // Validate username length.
         if (username.length < 3 || username.length > 30) {
             return res.status(400).render("signup", {
                 error: "Username must be between 3 and 30 characters.",
@@ -139,7 +229,6 @@ app.post("/signup", async (req, res) => {
             });
         }
 
-        // Only allow letters, numbers, and underscores.
         const usernamePattern = /^[a-zA-Z0-9_]+$/;
 
         if (!usernamePattern.test(username)) {
@@ -150,7 +239,6 @@ app.post("/signup", async (req, res) => {
             });
         }
 
-        // Validate email.
         const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
         if (!emailPattern.test(email)) {
@@ -160,7 +248,6 @@ app.post("/signup", async (req, res) => {
             });
         }
 
-        // Validate password length.
         if (password.length < 8) {
             return res.status(400).render("signup", {
                 error: "Password must be at least 8 characters long.",
@@ -168,7 +255,6 @@ app.post("/signup", async (req, res) => {
             });
         }
 
-        // Make sure both passwords match.
         if (password !== confirmPassword) {
             return res.status(400).render("signup", {
                 error: "The passwords do not match.",
@@ -176,73 +262,88 @@ app.post("/signup", async (req, res) => {
             });
         }
 
-        // Check whether the username already exists.
-        const findUsername = db.prepare(`
+        const existingUsernameResult = await pool.query(
+            `
             SELECT id
             FROM users
-            WHERE LOWER(username) = LOWER(?)
-        `);
+            WHERE LOWER(username) = LOWER($1)
+            LIMIT 1
+            `,
+            [username]
+        );
 
-        const existingUsername = findUsername.get(username);
-
-        if (existingUsername) {
+        if (existingUsernameResult.rows.length > 0) {
             return res.status(409).render("signup", {
                 error: "That username is already being used.",
                 formData
             });
         }
 
-        // Check whether the email already exists.
-        const findEmail = db.prepare(`
+        const existingEmailResult = await pool.query(
+            `
             SELECT id
             FROM users
-            WHERE LOWER(email) = LOWER(?)
-        `);
+            WHERE LOWER(email) = LOWER($1)
+            LIMIT 1
+            `,
+            [email]
+        );
 
-        const existingEmail = findEmail.get(email);
-
-        if (existingEmail) {
+        if (existingEmailResult.rows.length > 0) {
             return res.status(409).render("signup", {
                 error: "An account with that email already exists.",
                 formData
             });
         }
 
-        // Hash the password before saving it.
         const passwordHash = await bcrypt.hash(password, 12);
 
-        // Save the new user.
-        const insertUser = db.prepare(`
+        const insertResult = await pool.query(
+            `
             INSERT INTO users (
                 username,
                 email,
                 password_hash
             )
-            VALUES (?, ?, ?)
-        `);
-
-        const result = insertUser.run(
-            username,
-            email,
-            passwordHash
+            VALUES ($1, $2, $3)
+            RETURNING id, username, email
+            `,
+            [
+                username,
+                email,
+                passwordHash
+            ]
         );
 
-        // Automatically sign in the new user.
+        const newUser = insertResult.rows[0];
+
         req.session.user = {
-            id: Number(result.lastInsertRowid),
-            username,
-            email
+            id: Number(newUser.id),
+            username: newUser.username,
+            email: newUser.email
         };
 
-        res.redirect("/dashboard");
+        return res.redirect("/dashboard");
     } catch (error) {
         console.error("Registration error:", error);
 
-        res.status(500).render("signup", {
+        // PostgreSQL unique-constraint error.
+        if (error.code === "23505") {
+            return res.status(409).render("signup", {
+                error:
+                    "That username or email address is already being used.",
+                formData: {
+                    username,
+                    email
+                }
+            });
+        }
+
+        return res.status(500).render("signup", {
             error: "Something went wrong while creating your account.",
             formData: {
-                username: req.body.username || "",
-                email: req.body.email || ""
+                username,
+                email
             }
         });
     }
@@ -264,11 +365,18 @@ app.get("/signin", (req, res) => {
 });
 
 app.post("/signin", async (req, res) => {
-    try {
-        let { email, password } = req.body;
+    let email = "";
 
-        email = email ? email.trim().toLowerCase() : "";
-        password = password || "";
+    try {
+        email =
+            typeof req.body.email === "string"
+                ? req.body.email.trim().toLowerCase()
+                : "";
+
+        const password =
+            typeof req.body.password === "string"
+                ? req.body.password
+                : "";
 
         if (!email || !password) {
             return res.status(400).render("signin", {
@@ -277,19 +385,22 @@ app.post("/signin", async (req, res) => {
             });
         }
 
-        const findUser = db.prepare(`
+        const userResult = await pool.query(
+            `
             SELECT
                 id,
                 username,
                 email,
                 password_hash
             FROM users
-            WHERE LOWER(email) = LOWER(?)
-        `);
+            WHERE LOWER(email) = LOWER($1)
+            LIMIT 1
+            `,
+            [email]
+        );
 
-        const user = findUser.get(email);
+        const user = userResult.rows[0];
 
-        // Use one general error instead of revealing whether an email exists.
         if (!user) {
             return res.status(401).render("signin", {
                 error: "Incorrect email or password.",
@@ -315,13 +426,13 @@ app.post("/signin", async (req, res) => {
             email: user.email
         };
 
-        res.redirect("/dashboard");
+        return res.redirect("/dashboard");
     } catch (error) {
         console.error("Sign-in error:", error);
 
-        res.status(500).render("signin", {
+        return res.status(500).render("signin", {
             error: "Something went wrong while signing in.",
-            email: req.body.email || ""
+            email
         });
     }
 });
@@ -330,133 +441,127 @@ app.post("/signin", async (req, res) => {
 // Transactions
 // ----------------------------------------
 
-app.post("/transactions", requireAuth, (req, res) => {
+app.post("/transactions", requireAuth, async (req, res) => {
     try {
-        let { description, amount, type } = req.body;
+        const description =
+            typeof req.body.description === "string"
+                ? req.body.description.trim()
+                : "";
 
-        description = description ? description.trim() : "";
-        amount = Number(amount);
+        const amount = Number(req.body.amount);
+        const type = req.body.type;
 
-        if (!description || !amount || !type) {
-            return res.status(400).send("Please complete every field.");
+        if (!description || !req.body.amount || !type) {
+            return res.status(400).send(
+                "Please complete every field."
+            );
         }
 
-        if (amount <= 0 || Number.isNaN(amount)) {
+        if (
+            !Number.isFinite(amount) ||
+            amount <= 0
+        ) {
             return res.status(400).send(
                 "The transaction amount must be greater than zero."
             );
         }
 
         if (type !== "income" && type !== "expense") {
-            return res.status(400).send("Invalid transaction type.");
+            return res.status(400).send(
+                "Invalid transaction type."
+            );
         }
 
-        const insertTransaction = db.prepare(`
+        await pool.query(
+            `
             INSERT INTO transactions (
                 user_id,
                 description,
                 amount,
                 type
             )
-            VALUES (?, ?, ?, ?)
-        `);
-
-        insertTransaction.run(
-            req.session.user.id,
-            description,
-            amount,
-            type
+            VALUES ($1, $2, $3, $4)
+            `,
+            [
+                req.session.user.id,
+                description,
+                amount,
+                type
+            ]
         );
 
-        res.redirect("/dashboard");
+        return res.redirect("/dashboard");
     } catch (error) {
         console.error("Transaction error:", error);
-        res.status(500).send("Unable to add the transaction.");
-    }
-});
 
-app.post("/transactions/:id/delete", requireAuth, (req, res) => {
-    try {
-        const transactionId = Number(req.params.id);
-
-        if (!Number.isInteger(transactionId)) {
-            return res.status(400).send("Invalid transaction.");
-        }
-
-        const deleteTransaction = db.prepare(`
-            DELETE FROM transactions
-            WHERE id = ?
-            AND user_id = ?
-        `);
-
-        deleteTransaction.run(
-            transactionId,
-            req.session.user.id
+        return res.status(500).send(
+            "Unable to add the transaction."
         );
-
-        res.redirect("/dashboard");
-    } catch (error) {
-        console.error("Delete transaction error:", error);
-        res.status(500).send("Unable to delete the transaction.");
     }
 });
+
+app.post(
+    "/transactions/:id/delete",
+    requireAuth,
+    async (req, res) => {
+        try {
+            const transactionId = Number(req.params.id);
+
+            if (
+                !Number.isInteger(transactionId) ||
+                transactionId <= 0
+            ) {
+                return res.status(400).send(
+                    "Invalid transaction."
+                );
+            }
+
+            await pool.query(
+                `
+                DELETE FROM transactions
+                WHERE id = $1
+                AND user_id = $2
+                `,
+                [
+                    transactionId,
+                    req.session.user.id
+                ]
+            );
+
+            return res.redirect("/dashboard");
+        } catch (error) {
+            console.error(
+                "Delete transaction error:",
+                error
+            );
+
+            return res.status(500).send(
+                "Unable to delete the transaction."
+            );
+        }
+    }
+);
 
 // ----------------------------------------
 // Dashboard
 // ----------------------------------------
 
-app.get("/dashboard", requireAuth, (req, res) => {
+app.get("/dashboard", requireAuth, async (req, res) => {
     try {
         const userId = req.session.user.id;
 
-        const totalsQuery = db.prepare(`
-            SELECT
-                COALESCE(
-                    SUM(
-                        CASE
-                            WHEN type = 'income' THEN amount
-                            ELSE 0
-                        END
-                    ),
-                    0
-                ) AS totalIncome,
+        const {
+            totalIncome,
+            totalExpenses
+        } = await getFinancialTotals(userId);
 
-                COALESCE(
-                    SUM(
-                        CASE
-                            WHEN type = 'expense' THEN amount
-                            ELSE 0
-                        END
-                    ),
-                    0
-                ) AS totalExpenses
+        const transactions =
+            await getRecentTransactions(userId, 10);
 
-            FROM transactions
-            WHERE user_id = ?
-        `);
+        const currentBalance =
+            totalIncome - totalExpenses;
 
-        const totals = totalsQuery.get(userId);
-
-        const transactionsQuery = db.prepare(`
-            SELECT
-                id,
-                description,
-                amount,
-                type,
-                created_at
-            FROM transactions
-            WHERE user_id = ?
-            ORDER BY created_at DESC, id DESC
-            LIMIT 10
-        `);
-
-        const transactions = transactionsQuery.all(userId);
-
-        const totalIncome = Number(totals.totalIncome);
-        const totalExpenses = Number(totals.totalExpenses);
-        const currentBalance = totalIncome - totalExpenses;
-
-        res.render("dashboard", {
+        return res.render("dashboard", {
             user: req.session.user,
             totalIncome,
             totalExpenses,
@@ -466,7 +571,10 @@ app.get("/dashboard", requireAuth, (req, res) => {
         });
     } catch (error) {
         console.error("Dashboard error:", error);
-        res.status(500).send("Unable to load the dashboard.");
+
+        return res.status(500).send(
+            "Unable to load the dashboard."
+        );
     }
 });
 
@@ -478,11 +586,15 @@ app.post("/logout", (req, res) => {
     req.session.destroy((error) => {
         if (error) {
             console.error("Logout error:", error);
-            return res.status(500).send("Unable to sign out.");
+
+            return res.status(500).send(
+                "Unable to sign out."
+            );
         }
 
         res.clearCookie("connect.sid");
-        res.redirect("/");
+
+        return res.redirect("/");
     });
 });
 
@@ -490,86 +602,59 @@ app.post("/logout", (req, res) => {
 // AI
 // ----------------------------------------
 
-app.post("/api/financial-advice", requireAuth, async (req, res) => {
-    try {
-        const question =
-            typeof req.body.question === "string"
-                ? req.body.question.trim()
-                : "";
+app.post(
+    "/api/financial-advice",
+    requireAuth,
+    async (req, res) => {
+        try {
+            const question =
+                typeof req.body.question === "string"
+                    ? req.body.question.trim()
+                    : "";
 
-        if (!question) {
-            return res.status(400).json({
-                error: "Please enter a financial planning question."
-            });
-        }
+            if (!question) {
+                return res.status(400).json({
+                    error:
+                        "Please enter a financial planning question."
+                });
+            }
 
-        if (question.length > 1000) {
-            return res.status(400).json({
-                error: "Your question must be 1,000 characters or fewer."
-            });
-        }
+            if (question.length > 1000) {
+                return res.status(400).json({
+                    error:
+                        "Your question must be 1,000 characters or fewer."
+                });
+            }
 
-        const totalsQuery = db.prepare(`
-            SELECT
-                COALESCE(
-                    SUM(
-                        CASE
-                            WHEN type = 'income' THEN amount
-                            ELSE 0
-                        END
-                    ),
-                    0
-                ) AS totalIncome,
+            const userId = req.session.user.id;
 
-                COALESCE(
-                    SUM(
-                        CASE
-                            WHEN type = 'expense' THEN amount
-                            ELSE 0
-                        END
-                    ),
-                    0
-                ) AS totalExpenses
+            const {
+                totalIncome,
+                totalExpenses
+            } = await getFinancialTotals(userId);
 
-            FROM transactions
-            WHERE user_id = ?
-        `);
+            const currentBalance =
+                totalIncome - totalExpenses;
 
-        const totals = totalsQuery.get(req.session.user.id);
+            const recentTransactions =
+                await getRecentTransactions(userId, 20);
 
-        const totalIncome = Number(totals.totalIncome);
-        const totalExpenses = Number(totals.totalExpenses);
-        const currentBalance = totalIncome - totalExpenses;
+            const transactionSummary =
+                recentTransactions.length > 0
+                    ? recentTransactions
+                          .map((transaction) => {
+                              return (
+                                  `${transaction.type}: ` +
+                                  `${transaction.description} - ` +
+                                  `$${Number(
+                                      transaction.amount
+                                  ).toFixed(2)}`
+                              );
+                          })
+                          .join("\n")
+                    : "The user has not added any transactions yet.";
 
-        const categoryQuery = db.prepare(`
-            SELECT
-                description,
-                type,
-                amount
-            FROM transactions
-            WHERE user_id = ?
-            ORDER BY created_at DESC, id DESC
-            LIMIT 20
-        `);
-
-        const recentTransactions = categoryQuery.all(
-            req.session.user.id
-        );
-
-        const transactionSummary =
-            recentTransactions.length > 0
-                ? recentTransactions
-                      .map((transaction) => {
-                          return (
-                              `${transaction.type}: ` +
-                              `${transaction.description} - ` +
-                              `$${Number(transaction.amount).toFixed(2)}`
-                          );
-                      })
-                      .join("\n")
-                : "The user has not added any transactions yet.";
-
-        const prompt = `
+            const prompt = `
 You are DollarPlan AI, an educational financial planning assistant.
 
 Give practical, cautious, beginner-friendly financial guidance.
@@ -578,6 +663,9 @@ Do not guarantee investment results.
 Do not recommend taking on unnecessary debt.
 Do not request bank account numbers, Social Security numbers,
 credit-card numbers, passwords, or other sensitive information.
+
+Use Markdown formatting with clear headings, short paragraphs,
+and bullet points.
 
 Use the user's financial summary when it is relevant.
 
@@ -600,39 +688,48 @@ Respond with:
    not professional financial advice.
 
 Keep the response clear and reasonably short.
-        `.trim();
+            `.trim();
 
-        const ai = await getGeminiClient();
+            const ai = await getGeminiClient();
 
-        const interaction = await ai.interactions.create({
-            model: "gemini-3.6-flash",
-            input: prompt,
-            system_instruction:
-                "You are DollarPlan AI, a cautious educational financial planning assistant.",
-            generation_config: {
-                temperature: 0.4
+            const interaction =
+                await ai.interactions.create({
+                    model: "gemini-3.6-flash",
+                    input: prompt,
+
+                    system_instruction:
+                        "You are DollarPlan AI, a cautious educational financial planning assistant.",
+
+                    generation_config: {
+                        temperature: 0.4
+                    }
+                });
+
+            const answer = interaction.output_text;
+
+            if (!answer) {
+                throw new Error(
+                    "Gemini returned an empty response."
+                );
             }
-        });
 
-        const answer = interaction.output_text;
+            return res.json({
+                answer
+            });
+        } catch (error) {
+            console.error(
+                "Gemini financial assistant error:",
+                error
+            );
 
-        if (!answer) {
-            throw new Error("Gemini returned an empty response.");
+            return res.status(500).json({
+                error:
+                    "DollarPlan AI could not generate a response. " +
+                    "Check your API key and try again."
+            });
         }
-
-        res.json({
-            answer
-        });
-    } catch (error) {
-        console.error("Gemini financial assistant error:", error);
-
-        res.status(500).json({
-            error:
-                "DollarPlan AI could not generate a response. " +
-                "Check your API key and try again."
-        });
     }
-});
+);
 
 // ----------------------------------------
 // 404 page
@@ -646,6 +743,23 @@ app.use((req, res) => {
 // Start server
 // ----------------------------------------
 
-app.listen(PORT, "0.0.0.0", () => {
-    console.log(`DollarPlan is running on port http://localhost:${PORT}`);
-});
+async function startServer() {
+    try {
+        await initializeDatabase();
+
+        app.listen(PORT, "0.0.0.0", () => {
+            console.log(
+                `DollarPlan is running at http://localhost:${PORT}`
+            );
+        });
+    } catch (error) {
+        console.error(
+            "DollarPlan could not start:",
+            error
+        );
+
+        process.exit(1);
+    }
+}
+
+startServer();

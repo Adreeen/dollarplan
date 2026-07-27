@@ -13,7 +13,7 @@ DollarPlan is an AI-powered personal finance planner that helps users track inco
 - Node.js
 - Express
 - EJS
-- SQLite
+- PostgreSQL
 - Gemini API
 - HTML/CSS/JavaScript
 

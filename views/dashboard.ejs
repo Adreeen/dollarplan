@@ -1,12 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
 
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <title>Dashboard | DollarPlan</title>
 
@@ -54,10 +52,7 @@
                 </div>
 
                 <h2>
-                    <%= totalIncome.toLocaleString("en-US", {
-                        style: "currency",
-                        currency: "USD"
-                    }) %>
+                    <%= totalIncome.toLocaleString("en-US", { style: "currency" , currency: "USD" }) %>
                 </h2>
 
                 <small>All recorded income</small>
@@ -70,10 +65,7 @@
                 </div>
 
                 <h2>
-                    <%= totalExpenses.toLocaleString("en-US", {
-                        style: "currency",
-                        currency: "USD"
-                    }) %>
+                    <%= totalExpenses.toLocaleString("en-US", { style: "currency" , currency: "USD" }) %>
                 </h2>
 
                 <small>All recorded expenses</small>
@@ -86,104 +78,73 @@
                 </div>
 
                 <h2>
-                    <%= currentBalance.toLocaleString("en-US", {
-                        style: "currency",
-                        currency: "USD"
-                    }) %>
+                    <%= currentBalance.toLocaleString("en-US", { style: "currency" , currency: "USD" }) %>
                 </h2>
 
                 <small>Income minus expenses</small>
             </article>
         </section>
 
-         <section class="dashboard-panel ai-panel">
-    <div class="panel-heading">
-        <div>
-            <p class="eyebrow">Powered by Gemini</p>
-            <h2>DollarPlan AI Assistant</h2>
-            <p>
-                Ask for help creating a budget, reducing expenses,
-                or planning a savings goal.
+        <section class="dashboard-panel ai-panel">
+            <div class="panel-heading">
+                <div>
+                    <p class="eyebrow">Powered by Gemini</p>
+                    <h2>DollarPlan AI Assistant</h2>
+                    <p>
+                        Ask for help creating a budget, reducing expenses,
+                        or planning a savings goal.
+                    </p>
+                </div>
+            </div>
+
+            <div class="ai-example-questions">
+                <button type="button" class="ai-example-button"
+                    data-question="Help me create a monthly budget based on my finances.">
+                    Create a budget
+                </button>
+
+                <button type="button" class="ai-example-button" data-question="How can I reduce my current expenses?">
+                    Reduce expenses
+                </button>
+
+                <button type="button" class="ai-example-button" data-question="Help me make a realistic savings plan.">
+                    Plan my savings
+                </button>
+            </div>
+
+            <form id="ai-finance-form" class="ai-finance-form">
+                <div class="form-group">
+                    <label for="ai-question">
+                        What would you like help planning?
+                    </label>
+
+                    <textarea id="ai-question" name="question" rows="4" maxlength="1000"
+                        placeholder="Example: How much should I save each month for a $2,000 emergency fund?"
+                        required></textarea>
+
+                    <small>
+                        Do not enter account numbers, passwords, or other
+                        sensitive personal information.
+                    </small>
+                </div>
+
+                <button id="ask-ai-button" class="primary-button" type="submit">
+                    Ask DollarPlan AI
+                </button>
+            </form>
+
+            <div id="ai-error" class="error-message ai-hidden" role="alert"></div>
+
+            <div id="ai-response" class="ai-response ai-hidden" aria-live="polite">
+                <h3>DollarPlan AI response</h3>
+                <div id="ai-response-text"></div>
+            </div>
+
+            <p class="ai-disclaimer">
+                DollarPlan AI provides educational information and is not
+                a substitute for advice from a qualified financial professional.
             </p>
-        </div>
-    </div>
-
-    <div class="ai-example-questions">
-        <button
-            type="button"
-            class="ai-example-button"
-            data-question="Help me create a monthly budget based on my finances."
-        >
-            Create a budget
-        </button>
-
-        <button
-            type="button"
-            class="ai-example-button"
-            data-question="How can I reduce my current expenses?"
-        >
-            Reduce expenses
-        </button>
-
-        <button
-            type="button"
-            class="ai-example-button"
-            data-question="Help me make a realistic savings plan."
-        >
-            Plan my savings
-        </button>
-    </div>
-
-    <form id="ai-finance-form" class="ai-finance-form">
-        <div class="form-group">
-            <label for="ai-question">
-                What would you like help planning?
-            </label>
-
-            <textarea
-                id="ai-question"
-                name="question"
-                rows="4"
-                maxlength="1000"
-                placeholder="Example: How much should I save each month for a $2,000 emergency fund?"
-                required
-            ></textarea>
-
-            <small>
-                Do not enter account numbers, passwords, or other
-                sensitive personal information.
-            </small>
-        </div>
-
-        <button
-            id="ask-ai-button"
-            class="primary-button"
-            type="submit"
-        >
-            Ask DollarPlan AI
-        </button>
-    </form>
-
-    <div
-        id="ai-error"
-        class="error-message ai-hidden"
-        role="alert"
-    ></div>
-
-    <div
-        id="ai-response"
-        class="ai-response ai-hidden"
-        aria-live="polite"
-    >
-        <h3>DollarPlan AI response</h3>
-        <div id="ai-response-text"></div>
-    </div>
-
-    <p class="ai-disclaimer">
-        DollarPlan AI provides educational information and is not
-        a substitute for advice from a qualified financial professional.
-    </p>
-</section>
+        </section>
 
         <section class="dashboard-content-grid">
             <article class="dashboard-panel">
@@ -194,36 +155,19 @@
                     </div>
                 </div>
 
-                <form
-                    action="/transactions"
-                    method="POST"
-                    class="transaction-form"
-                >
+                <form action="/transactions" method="POST" class="transaction-form">
                     <div class="form-group">
                         <label for="description">Description</label>
 
-                        <input
-                            id="description"
-                            name="description"
-                            type="text"
-                            placeholder="Example: Paycheck or groceries"
-                            maxlength="100"
-                            required
-                        >
+                        <input id="description" name="description" type="text"
+                            placeholder="Example: Paycheck or groceries" maxlength="100" required>
                     </div>
 
                     <div class="form-group">
                         <label for="amount">Amount</label>
 
-                        <input
-                            id="amount"
-                            name="amount"
-                            type="number"
-                            placeholder="0.00"
-                            min="0.01"
-                            step="0.01"
-                            required
-                        >
+                        <input id="amount" name="amount" type="number" placeholder="0.00" min="0.01" step="0.01"
+                            required>
                     </div>
 
                     <div class="form-group">
@@ -253,12 +197,16 @@
                 <div class="account-details">
                     <div>
                         <span>Username</span>
-                        <strong><%= user.username %></strong>
+                        <strong>
+                            <%= user.username %>
+                        </strong>
                     </div>
 
                     <div>
                         <span>Email</span>
-                        <strong><%= user.email %></strong>
+                        <strong>
+                            <%= user.email %>
+                        </strong>
                     </div>
                 </div>
             </aside>
@@ -272,7 +220,7 @@
                 </div>
             </div>
 
-            <% if (transactions.length === 0) { %>
+            <% if (transactions.length===0) { %>
                 <div class="empty-state">
                     <div class="empty-icon">$</div>
 
@@ -282,67 +230,45 @@
                         Add your first transaction using the form above.
                     </p>
                 </div>
-            <% } else { %>
-                <div class="transaction-list">
-                    <% transactions.forEach((transaction) => { %>
-                        <article class="transaction-item">
-                            <div class="transaction-information">
-                                <div
-                                    class="transaction-type-icon
-                                    <%= transaction.type %>-icon"
-                                >
-                                    <%= transaction.type === "income"
-                                        ? "+"
-                                        : "−"
-                                    %>
+                <% } else { %>
+                    <div class="transaction-list">
+                        <% transactions.forEach((transaction)=> { %>
+                            <article class="transaction-item">
+                                <div class="transaction-information">
+                                    <div class="transaction-type-icon
+                                    <%= transaction.type %>-icon">
+                                        <%= transaction.type==="income" ? "+" : "−" %>
+                                    </div>
+
+                                    <div>
+                                        <h3>
+                                            <%= transaction.description %>
+                                        </h3>
+
+                                        <p>
+                                            <%= new Date( transaction.created_at ).toLocaleDateString("en-US") %>
+                                        </p>
+                                    </div>
                                 </div>
 
-                                <div>
-                                    <h3>
-                                        <%= transaction.description %>
-                                    </h3>
+                                <div class="transaction-actions">
+                                    <strong class="<%= transaction.type %>-amount">
+                                        <%= transaction.type==="income" ? "+" : "−" %>
 
-                                    <p>
-                                        <%= new Date(
-                                            transaction.created_at + "Z"
-                                        ).toLocaleDateString() %>
-                                    </p>
+                                            <%= Number( transaction.amount ).toLocaleString("en-US", { style: "currency"
+                                                , currency: "USD" }) %>
+                                    </strong>
+
+                                    <form action="/transactions/<%= transaction.id %>/delete" method="POST">
+                                        <button class="delete-button" type="submit">
+                                            Delete
+                                        </button>
+                                    </form>
                                 </div>
-                            </div>
-
-                            <div class="transaction-actions">
-                                <strong
-                                    class="<%= transaction.type %>-amount"
-                                >
-                                    <%= transaction.type === "income"
-                                        ? "+"
-                                        : "−"
-                                    %>
-
-                                    <%= Number(
-                                        transaction.amount
-                                    ).toLocaleString("en-US", {
-                                        style: "currency",
-                                        currency: "USD"
-                                    }) %>
-                                </strong>
-
-                                <form
-                                    action="/transactions/<%= transaction.id %>/delete"
-                                    method="POST"
-                                >
-                                    <button
-                                        class="delete-button"
-                                        type="submit"
-                                    >
-                                        Delete
-                                    </button>
-                                </form>
-                            </div>
-                        </article>
-                    <% }) %>
-                </div>
-            <% } %>
+                            </article>
+                            <% }) %>
+                    </div>
+                    <% } %>
         </section>
 
         <p class="financial-disclaimer">
@@ -351,4 +277,5 @@
         </p>
     </main>
 </body>
+
 </html>
