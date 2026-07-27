@@ -22,3 +22,5 @@ DollarPlan is an AI-powered personal finance planner that helps users track inco
 **Password:** testuser
 **Username:** test
 
+## Website
+https://dollarplan.onrender.com
